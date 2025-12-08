@@ -1,6 +1,6 @@
 # Ubuntu post-instalación – comandos rápidos
 
-Lista corta de utilidades que quiero tener a mano tras formatear/instalar Ubuntu. Los comandos base están en `list command for terminal.sh`.
+Repositorio personal para reinstalaciones rápidas de Ubuntu: utilidades que quiero tener a mano tras formatear/instalar. Incluye comandos de instalación, funciones de mantenimiento y ejemplos de uso. Los comandos base están en `list command for terminal.sh`.
 
 ## Cómo usar este repo
 1. Clona el repo en tu máquina fresca.
