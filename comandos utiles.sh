@@ -1,61 +1,181 @@
 # =========================
 # cleanup: desinstala paquete (apt/snap/flatpak) + limpia + actualiza
-# Uso: cleanup <nombre_paquete>
+# Uso: cleanup <nombre_paquete> [--no-update] [--no-upgrade] [--keep-local-data] [--dry-run]
 # =========================
-cleanup() {
+_cleanup_validate_pkg_name() {
     local pkg="$1"
     if [ -z "$pkg" ]; then
-        echo "⚠️  Uso: cleanup <nombre_paquete>"
+        echo "Uso: cleanup <nombre_paquete> [--no-update] [--no-upgrade] [--keep-local-data] [--dry-run]"
         return 1
     fi
 
-    echo "🧹 Desinstalando $pkg y limpiando el sistema..."
+    case "$pkg" in
+        .|..|*/*)
+            echo "Nombre de paquete invalido: $pkg"
+            return 1
+            ;;
+    esac
 
-    removed=0
+    if ! [[ "$pkg" =~ ^[a-zA-Z0-9._:+-]+$ ]]; then
+        echo "Nombre de paquete invalido: $pkg"
+        return 1
+    fi
+}
+
+_cleanup_cmd_with_timeout() {
+    local seconds="$1"
+    shift
+    if command -v timeout >/dev/null 2>&1; then
+        timeout "$seconds" "$@"
+    else
+        "$@"
+    fi
+}
+
+_cleanup_snap_installed() {
+    command -v snap >/dev/null 2>&1 || return 1
+    _cleanup_cmd_with_timeout 8 snap list "$1" >/dev/null 2>&1
+}
+
+_cleanup_flatpak_installed() {
+    command -v flatpak >/dev/null 2>&1 || return 1
+    _cleanup_cmd_with_timeout 8 flatpak info --app "$1" >/dev/null 2>&1
+}
+
+cleanup() {
+    local pkg="$1"
+    shift || true
+
+    local do_update=1
+    local do_upgrade=1
+    local remove_local_data=1
+    local dry_run=0
+
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --no-update) do_update=0 ;;
+            --no-upgrade) do_upgrade=0 ;;
+            --keep-local-data) remove_local_data=0 ;;
+            --dry-run) dry_run=1 ;;
+            -h|--help)
+                _cleanup_validate_pkg_name ""
+                return 0
+                ;;
+            *)
+                echo "Opcion no reconocida: $1"
+                return 1
+                ;;
+        esac
+        shift
+    done
+
+    _cleanup_validate_pkg_name "$pkg" || return 1
+
+    local removed_any=0
+    local status=0
+
+    echo "Iniciando limpieza de: $pkg"
 
     # 1) APT (.deb)
-    if dpkg -l | awk '{print $2}' | grep -Fxq "$pkg"; then
-        sudo apt purge -y "$pkg" && removed=1
+    if dpkg-query -W -f='${db:Status-Status}\n' "$pkg" 2>/dev/null | grep -Fxq "installed"; then
+        if [ "$dry_run" -eq 1 ]; then
+            echo "[dry-run] sudo apt-get purge -y \"$pkg\""
+            removed_any=1
+        elif sudo apt-get purge -y "$pkg"; then
+            removed_any=1
+        else
+            status=1
+        fi
     fi
 
     # 2) SNAP
-    if [ $removed -eq 0 ] && command -v snap >/dev/null 2>&1; then
-        if snap list | awk 'NR>1{print $1}' | grep -Fxq "$pkg"; then
-            # --purge intenta borrar también datos comunes del snap
-            sudo snap remove --purge "$pkg" && removed=1
+    if _cleanup_snap_installed "$pkg"; then
+        if [ "$dry_run" -eq 1 ]; then
+            echo "[dry-run] sudo snap remove --purge \"$pkg\""
+            removed_any=1
+        elif sudo snap remove --purge "$pkg"; then
+            removed_any=1
+        else
+            status=1
         fi
     fi
 
     # 3) FLATPAK
-    if [ $removed -eq 0 ] && command -v flatpak >/dev/null 2>&1; then
-        if flatpak list --app | awk '{print $1}' | grep -Fxq "$pkg"; then
-            flatpak uninstall -y --delete-data "$pkg" && removed=1
+    if _cleanup_flatpak_installed "$pkg"; then
+        if [ "$dry_run" -eq 1 ]; then
+            echo "[dry-run] flatpak uninstall -y --delete-data \"$pkg\""
+            removed_any=1
+        elif flatpak uninstall -y --delete-data "$pkg"; then
+            removed_any=1
+        else
+            status=1
         fi
     fi
 
-    if [ $removed -eq 0 ]; then
-        echo "❌ No se encontró '$pkg' en APT, Snap ni Flatpak. Continuo con limpieza general…"
+    if [ "$removed_any" -eq 0 ]; then
+        echo "No se encontro '$pkg' instalado en apt, snap o flatpak."
     fi
 
-    # Limpieza y actualización, como en tu cadena original
-    sudo apt autoremove -y && \
-    sudo apt clean && \
-    sudo apt update -y && \
-    sudo apt upgrade -y
+    if [ "$dry_run" -eq 1 ]; then
+        echo "[dry-run] sudo apt-get autoremove --purge -y"
+        echo "[dry-run] sudo apt-get clean"
+        if [ "$do_update" -eq 1 ]; then
+            echo "[dry-run] sudo apt-get update"
+        fi
+        if [ "$do_upgrade" -eq 1 ]; then
+            echo "[dry-run] sudo apt-get upgrade -y"
+        fi
+    else
+        sudo apt-get autoremove --purge -y || status=1
+        sudo apt-get clean || status=1
+        if [ "$do_update" -eq 1 ]; then
+            sudo apt-get update || status=1
+        fi
+        if [ "$do_upgrade" -eq 1 ]; then
+            sudo apt-get upgrade -y || status=1
+        fi
+    fi
 
-    # Borrar configuraciones locales si existen (fallback para apps que dejan rastro)
-    rm -rf ~/.config/"$pkg" ~/.local/share/"$pkg"
+    if [ "$remove_local_data" -eq 1 ]; then
+        local base target
+        for base in "$HOME/.config" "$HOME/.local/share" "$HOME/.cache"; do
+            target="$base/$pkg"
+            if [ -e "$target" ]; then
+                if [ "$dry_run" -eq 1 ]; then
+                    echo "[dry-run] rm -rf -- \"$target\""
+                else
+                    rm -rf -- "$target" || status=1
+                fi
+            fi
+        done
+    fi
 
-    echo "✅ Limpieza completa de $pkg finalizada."
+    if [ "$status" -eq 0 ]; then
+        echo "Limpieza finalizada sin errores."
+    else
+        echo "Limpieza finalizada con errores. Revisa la salida."
+    fi
+
+    return "$status"
 }
 
 # =========================
-# sysupdate: tu cadena tal cual (update + upgrade + install vacío + autoremove)
+# sysupdate: actualiza y limpia el sistema
 # Uso: sysupdate
 # =========================
 sysupdate() {
-    sudo apt update -y && \
-    sudo apt upgrade -y && \
-    sudo apt install -y && \
-    sudo apt autoremove -y
+    local status=0
+
+    sudo apt-get update || status=1
+    sudo apt-get upgrade -y || status=1
+    sudo apt-get autoremove --purge -y || status=1
+    sudo apt-get clean || status=1
+
+    if [ "$status" -eq 0 ]; then
+        echo "Actualizacion del sistema finalizada."
+    else
+        echo "Actualizacion finalizada con errores. Revisa la salida."
+    fi
+
+    return "$status"
 }
