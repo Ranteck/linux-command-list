@@ -79,6 +79,11 @@ fi
 gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
 gsettings set org.gnome.mutter dynamic-workspaces true
 
+# Ubuntu Dock: mantenerlo abajo para conservar indicador inferior.
+if gsettings list-schemas | grep -Fxq org.gnome.shell.extensions.dash-to-dock; then
+  gsettings set org.gnome.shell.extensions.dash-to-dock dock-position 'BOTTOM'
+fi
+
 # Extension-specific settings
 TS_SCHEMA_DIR="$HOME/.local/share/gnome-shell/extensions/tilingshell@ferrarodomenico.com/schemas"
 BMS_SCHEMA_DIR="$HOME/.local/share/gnome-shell/extensions/blur-my-shell@aunetx/schemas"

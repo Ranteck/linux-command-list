@@ -77,6 +77,7 @@ Repositorio personal para reinstalaciones rápidas de Ubuntu: utilidades que qui
   - `Just Perfection`
   - `Rounded Window Corners` (UUID segun version)
 - Aplica preset de apariencia/tiling (gaps, blur de panel, esquinas redondeadas, panel mas limpio).
+- Deja el Ubuntu Dock en la parte inferior (`BOTTOM`) para mantener el indicador de apps abajo.
 - Uso:
   - `chmod +x hyprland_like_gnome_setup.sh`
   - `./hyprland_like_gnome_setup.sh`
