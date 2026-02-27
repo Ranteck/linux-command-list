@@ -42,6 +42,8 @@ Repositorio personal para reinstalaciones rápidas de Ubuntu: utilidades que qui
 ### 6) Lista APT post-formateo (`instalacion_apt_postformateo.sh`)
 - Archivo: `instalacion_apt_postformateo.sh`
 - Enfoque: listado de `sudo apt-get install ...` por bloques para ir instalando manualmente.
+- Al finalizar, migra automáticamente `bashrc aliases.sh` a `~/.bash_aliases` (con backup) y asegura su carga en `~/.bashrc`.
+- Tambien configura Wayland como preferencia a nivel usuario en `~/.dmrc` (con backup), sin tocar GDM global.
 - Uso:
   - `chmod +x instalacion_apt_postformateo.sh`
   - `./instalacion_apt_postformateo.sh`
