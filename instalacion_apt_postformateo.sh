@@ -10,6 +10,8 @@ ALIASES_SOURCE="$SCRIPT_DIR/bashrc aliases.sh"
 ALIASES_TARGET="$HOME/.bash_aliases"
 BASHRC_TARGET="$HOME/.bashrc"
 DMRC_TARGET="$HOME/.dmrc"
+SLACK_WRAPPER_TARGET="$HOME/.local/bin/slack-basic"
+SLACK_DESKTOP_OVERRIDE="$HOME/.local/share/applications/slack_slack.desktop"
 
 # Recomendado: primero
 sudo apt-get update
@@ -81,3 +83,39 @@ EOF
 chmod 644 "$DMRC_TARGET"
 echo "Preferencia de sesion configurada: Wayland (usuario)."
 echo "Si algo falla, en login elige: Ubuntu on Xorg."
+
+# 8) Fix Slack Snap: persistencia de sesion con password-store=basic
+if [ -x /snap/bin/slack ]; then
+  mkdir -p "$HOME/.local/bin" "$HOME/.local/share/applications"
+
+  cat > "$SLACK_WRAPPER_TARGET" <<'EOF'
+#!/usr/bin/env bash
+exec /snap/bin/slack --password-store=basic "$@"
+EOF
+  chmod +x "$SLACK_WRAPPER_TARGET"
+
+  cat > "$SLACK_DESKTOP_OVERRIDE" <<EOF
+[Desktop Entry]
+X-SnapInstanceName=slack
+Name=Slack
+StartupWMClass=Slack
+Comment=Slack Desktop
+GenericName=Slack Client for Linux
+X-SnapAppName=slack
+Exec=$SLACK_WRAPPER_TARGET %U
+Icon=/snap/slack/current/usr/share/pixmaps/slack.png
+Type=Application
+StartupNotify=true
+Categories=GNOME;GTK;Network;InstantMessaging;
+MimeType=x-scheme-handler/slack;
+EOF
+
+  if command -v update-desktop-database >/dev/null 2>&1; then
+    update-desktop-database "$HOME/.local/share/applications" || true
+  fi
+
+  echo "Fix Slack aplicado: launcher local con --password-store=basic."
+  echo "Si Slack sigue en el dock, desanclalo y vuelve a anclarlo."
+else
+  echo "Slack Snap no esta instalado. Se omite fix de persistencia."
+fi

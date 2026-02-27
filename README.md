@@ -44,6 +44,7 @@ Repositorio personal para reinstalaciones rápidas de Ubuntu: utilidades que qui
 - Enfoque: listado de `sudo apt-get install ...` por bloques para ir instalando manualmente.
 - Al finalizar, migra automáticamente `bashrc aliases.sh` a `~/.bash_aliases` (con backup) y asegura su carga en `~/.bashrc`.
 - Tambien configura Wayland como preferencia a nivel usuario en `~/.dmrc` (con backup), sin tocar GDM global.
+- Si detecta Slack Snap, aplica launcher local con `--password-store=basic` para mejorar persistencia de sesion.
 - Uso:
   - `chmod +x instalacion_apt_postformateo.sh`
   - `./instalacion_apt_postformateo.sh`
@@ -56,18 +57,33 @@ Repositorio personal para reinstalaciones rápidas de Ubuntu: utilidades que qui
   - `./backup_formateo.sh backup`
 - Restaurar en instalación nueva:
   - `./backup_formateo.sh restore "<ruta_del_backup>"`
+  - `./backup_formateo.sh restore "<ruta_del_backup>" --with-core-tools`
 - Este script guarda/restaura:
-  - Lista de paquetes APT manuales
-  - Lista de apps Snap y Flatpak
-  - Configuración GNOME (`dconf`) y extensiones de usuario
+  - Configuracion GNOME (`dconf`) y extensiones de usuario
+  - Lista de extensiones habilitadas
+  - Archivos de usuario clave: `~/.dmrc`, `~/.bash_aliases`, fix de Slack (`slack-basic` + `.desktop`)
+  - Listas APT/Snap/Flatpak como referencia de estado
 
 ### 8) Dependencias recomendadas para GNOME Tiling + restore
 - Instalar base:
   - `sudo apt-get update`
   - `sudo apt-get install -y gnome-shell-extension-manager gnome-shell-extensions dconf-cli`
 
+### 9) Preset visual tipo Hyprland en GNOME (`hyprland_like_gnome_setup.sh`)
+- Archivo: `hyprland_like_gnome_setup.sh`
+- Instala y habilita extensiones compatibles con tu version de GNOME:
+  - `Tiling Shell`
+  - `Blur my Shell`
+  - `Just Perfection`
+  - `Rounded Window Corners` (UUID segun version)
+- Aplica preset de apariencia/tiling (gaps, blur de panel, esquinas redondeadas, panel mas limpio).
+- Uso:
+  - `chmod +x hyprland_like_gnome_setup.sh`
+  - `./hyprland_like_gnome_setup.sh`
+
 ## Archivo de referencia
 - `list command for terminal.sh`: contiene las instalaciones y ejemplos rápidos (edítalo para agregar más).
 - `bashrc aliases.sh`: funciones reutilizables de limpieza/actualización.
 - `instalacion_apt_postformateo.sh`: lista de instalaciones APT por bloques.
 - `backup_formateo.sh`: backup y restore de paquetes + GNOME/extensiones.
+- `hyprland_like_gnome_setup.sh`: preset visual/tiling GNOME estilo Hyprland.
